@@ -209,6 +209,8 @@
     color: var(--accent);
   }
 
+  .top-bar.student-mode .brand { display: none; }
+
   /* ── CONTENT ── */
   #student-view {
     padding: 16px 24px 24px;
@@ -659,8 +661,10 @@
     display: none;
   }
 
-  .back-btn:hover { background: var(--accent); color: var(--bg); }
   .back-btn.visible { display: block; }
+  .back-btn:hover { background: var(--accent); color: var(--bg); }
+
+  .top-bar.student-mode .brand { display: none; }
 
   @media (max-width: 1300px) {
     .main-grid {
@@ -714,7 +718,7 @@
 
 <!-- DASHBOARD -->
 <div id="dashboard">
-  <div class="top-bar">
+  <div class="top-bar" id="top-bar">
     <div class="brand">Esfera <span>PowerToys</span></div>
     <button class="back-btn" id="back-btn">← Tornar al grup</button>
     <div class="select-wrap">
@@ -1099,6 +1103,7 @@ const studentView   = document.getElementById('student-view');
 const groupSummary  = document.getElementById('group-summary');
 const resetBtn      = document.getElementById('reset-btn');
 const backBtn       = document.getElementById('back-btn');
+const topBar        = document.getElementById('top-bar');
 
 let currentStudentNom = '';
 
@@ -1107,6 +1112,7 @@ function showGroupSummary() {
   groupSummary.style.display = 'block';
   groupSummary.innerHTML = renderGroupSummary();
   backBtn.classList.remove('visible');
+  topBar.classList.remove('student-mode');
   studentSelect.value = '';
   window.scrollTo(0, 0);
 
@@ -1198,6 +1204,7 @@ studentSelect.addEventListener('change', () => {
   studentView.innerHTML = '<div id="pdf-target"></div>';
   document.getElementById('pdf-target').innerHTML = renderStudent(student);
   backBtn.classList.add('visible');
+  topBar.classList.add('student-mode');
   studentView.scrollTop = 0;
   window.scrollTo(0, 0);
 });
@@ -1271,6 +1278,7 @@ resetBtn.addEventListener('click', () => {
   uploadScreen.style.display = 'flex';
   fileInput.value = '';
   backBtn.classList.remove('visible');
+  topBar.classList.remove('student-mode');
 });
 </script>
 </body>
