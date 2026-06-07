@@ -318,7 +318,7 @@
 
   .ra-pill.pass { background: var(--green-dim); color: var(--green);  border: 1px solid var(--green); }
   .ra-pill.fail { background: var(--red-dim);   color: var(--red);    border: 1px solid var(--red); }
-  .ra-pill.pdt  { background: var(--yellow-dim);color: var(--yellow); border: 1px solid var(--yellow); }
+  .ra-pill.pdt  { background: var(--yellow-dim);color: var(--yellow); border: 1px solid var(--yellow); width: 47px; }
   .ra-pill.empty{ background: transparent;      color: transparent;   border: none; }
 
   /* Total cell */
@@ -666,6 +666,28 @@
 
   .top-bar.student-mode .brand { display: none; }
 
+  .nav-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.1rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .nav-btn:disabled { opacity: 0.25; cursor: default; }
+
   @media (max-width: 1300px) {
     .main-grid {
       grid-template-columns: 1fr;
@@ -722,10 +744,12 @@
     <div class="brand">Esfera <span>PowerToys</span></div>
     <button class="back-btn" id="back-btn">← Tornar al grup</button>
     <div class="select-wrap">
+      <button class="nav-btn" id="prev-btn" title="Alumne anterior">‹</button>
       <label>Alumne</label>
       <select class="student-select" id="student-select">
         <option value="">— selecciona un alumne —</option>
       </select>
+      <button class="nav-btn" id="next-btn" title="Alumne següent">›</button>
     </div>
     <button class="new-file-btn" id="reset-btn">↩ Nou fitxer</button>
   </div>
@@ -823,13 +847,20 @@ function buildStudents(rows) {
       const raKeys = Object.keys(row).filter(k =>
         k.startsWith(code + '_') && /\dRA$/i.test(k)
       );
+      const emKeys = Object.keys(row).filter(k =>
+        k.startsWith(code + '_') && /\dEM$/i.test(k)
+      );
       const finalVal = row[code] ?? '';
 
       const ras = raKeys.map(k => {
-        // Extract RA number: e.g. "0221_IC10_01RA" → "01RA" → strip to number
         const num = k.replace(code + '_', '').replace('_IC10', '');
         return { key: num, raw: row[k] ?? '' };
       });
+
+      const ems = emKeys.map(k => {
+        const num = k.replace(code + '_', '').replace('_IC10', '');
+        return { key: num, raw: row[k] ?? '' };
+      }).filter(e => e.raw !== '');
 
       if (finalVal === '' && ras.length === 0) return;
 
@@ -838,6 +869,7 @@ function buildStudents(rows) {
         name: SUBJECT_NAMES[code] || code,
         final: finalVal,
         ras,
+        ems,
       };
     });
 
@@ -934,23 +966,41 @@ function renderStudent(student) {
     });
   });
 
-  // Header row: RA01, RA02...
+  // Find max EM cols across subjects
+  const maxEMs = Math.max(...subjectList.map(s => (s.ems || []).length), 0);
+
+  // Header row: RA01, RA02... | EM01... | Total
   const raHeaders = Array.from({length: maxRAs}, (_, i) =>
     `<th>RA${String(i+1).padStart(2,'0')}</th>`
   ).join('');
+
+  const emHeaders = maxEMs > 0
+    ? Array.from({length: maxEMs}, (_, i) =>
+        `<th style="border-left:1px solid var(--border)">${maxEMs > 1 ? 'EMPRESA ' + String(i+1) : 'EMPRESA'}</th>`
+      ).join('')
+    : '';
 
   // Table rows
   const rowsHTML = subjectList.map(sub => {
     const fc = finalClass(sub.final);
     const badge = badgeInfo(sub.final);
+    const ems = sub.ems || [];
 
-    // Fill RAs up to maxRAs with empty cells
+    // Fill RAs up to maxRAs
     const raCells = Array.from({length: maxRAs}, (_, i) => {
       const ra = sub.ras[i];
       if (!ra) return `<td class="td-ra"><span class="ra-pill empty">·</span></td>`;
       const sc = scoreClass(ra.raw);
       return `<td class="td-ra"><span class="ra-pill ${sc}" title="${ra.key}: ${displayVal(ra.raw)}">${displayVal(ra.raw)}</span></td>`;
     }).join('');
+
+    // Fill EMs up to maxEMs
+    const emCells = maxEMs > 0 ? Array.from({length: maxEMs}, (_, i) => {
+      const em = ems[i];
+      if (!em) return `<td class="td-ra" style="border-left:${i===0?'1px solid var(--border)':'none'}"><span class="ra-pill empty">·</span></td>`;
+      const sc = scoreClass(em.raw);
+      return `<td class="td-ra" style="${i===0?'border-left:1px solid var(--border)':''}"><span class="ra-pill ${sc}" title="${em.key}: ${displayVal(em.raw)}">${displayVal(em.raw)}</span></td>`;
+    }).join('') : '';
 
     const badgeLabel = badge.cls === 'badge-pdt' ? 'PDT'
       : badge.cls === 'badge-pass' && displayVal(sub.final) === 'PQ' ? 'PQ'
@@ -959,6 +1009,7 @@ function renderStudent(student) {
     return `<tr>
       <td class="td-name"><span class="subj-name-text">${sub.name}</span></td>
       ${raCells}
+      ${emCells}
       <td class="td-total">
         <div class="total-pill ${fc}" title="${badgeLabel}">${displayVal(sub.final)}</div>
       </td>
@@ -983,6 +1034,7 @@ function renderStudent(student) {
           <tr>
             <th class="th-name">Mòdul</th>
             ${raHeaders}
+            ${emHeaders}
             <th>Total</th>
           </tr>
         </thead>
@@ -1103,9 +1155,18 @@ const studentView   = document.getElementById('student-view');
 const groupSummary  = document.getElementById('group-summary');
 const resetBtn      = document.getElementById('reset-btn');
 const backBtn       = document.getElementById('back-btn');
+const prevBtn       = document.getElementById('prev-btn');
+const nextBtn       = document.getElementById('next-btn');
 const topBar        = document.getElementById('top-bar');
 
 let currentStudentNom = '';
+
+function updateNavButtons() {
+  const opts = [...studentSelect.options].filter(o => o.value);
+  const idx = opts.findIndex(o => o.value === studentSelect.value);
+  prevBtn.disabled = idx <= 0;
+  nextBtn.disabled = idx === -1 || idx >= opts.length - 1;
+}
 
 function showGroupSummary() {
   studentView.style.display = 'none';
@@ -1205,8 +1266,27 @@ studentSelect.addEventListener('change', () => {
   document.getElementById('pdf-target').innerHTML = renderStudent(student);
   backBtn.classList.add('visible');
   topBar.classList.add('student-mode');
+  updateNavButtons();
   studentView.scrollTop = 0;
   window.scrollTo(0, 0);
+});
+
+prevBtn.addEventListener('click', () => {
+  const opts = [...studentSelect.options].filter(o => o.value);
+  const idx = opts.findIndex(o => o.value === studentSelect.value);
+  if (idx > 0) {
+    studentSelect.value = opts[idx - 1].value;
+    studentSelect.dispatchEvent(new Event('change'));
+  }
+});
+
+nextBtn.addEventListener('click', () => {
+  const opts = [...studentSelect.options].filter(o => o.value);
+  const idx = opts.findIndex(o => o.value === studentSelect.value);
+  if (idx < opts.length - 1) {
+    studentSelect.value = opts[idx + 1].value;
+    studentSelect.dispatchEvent(new Event('change'));
+  }
 });
 
 // PDF export — delegated from studentView
