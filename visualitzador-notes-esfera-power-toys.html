@@ -512,6 +512,111 @@
     visibility: hidden;
   }
 
+  /* ── TAB BAR ── */
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    padding: 10px 24px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .tab-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    padding: 8px 16px 10px;
+    cursor: pointer;
+    transition: all 0.18s;
+    letter-spacing: 0.04em;
+    margin-bottom: -1px;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* ── MODULE SUMMARY ── */
+  #module-summary {
+    padding: 20px 24px 32px;
+    width: 100%;
+  }
+
+  .module-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .module-table thead tr { background: var(--surface2); }
+
+  .module-table thead th {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 9px 14px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .module-table thead th.th-left { text-align: left; }
+
+  .module-table tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+  }
+
+  .module-table tbody tr:last-child { border-bottom: none; }
+  .module-table tbody tr:hover { background: var(--surface2); }
+
+  .module-table td {
+    padding: 10px 14px;
+    font-size: 0.78rem;
+    vertical-align: middle;
+    text-align: center;
+  }
+
+  .module-table td.td-modname {
+    text-align: left;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .module-table td.td-modname .mod-code {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    background: var(--surface2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 8px;
+  }
+
+  .mod-bar-wrap {
+    width: 100%;
+    height: 5px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 5px;
+  }
+
+  .mod-bar-ok  { height: 100%; border-radius: 3px; background: var(--green); float: left; }
+  .mod-bar-ko  { height: 100%; background: var(--red); float: left; }
+  .mod-bar-pdt { height: 100%; background: var(--yellow); float: left; }
+
   /* ── GROUP SUMMARY ── */
   #group-summary {
     padding: 20px 24px 32px;
@@ -753,9 +858,14 @@
     </div>
     <button class="new-file-btn" id="reset-btn">↩ Nou fitxer</button>
   </div>
+  <div class="tab-bar" id="tab-bar" style="display:none">
+    <button class="tab-btn active" data-tab="group">👥 Alumnes</button>
+    <button class="tab-btn" data-tab="modules">📚 Mòduls</button>
+  </div>
 
   <div id="student-view" style="display:none"><div id="pdf-target"></div></div>
   <div id="group-summary" style="display:none"></div>
+  <div id="module-summary" style="display:none"></div>
 </div>
 
 <script>
@@ -1144,6 +1254,90 @@ function renderGroupSummary() {
 }
 
 // ─────────────────────────────────────────────
+// MODULE SUMMARY
+// ─────────────────────────────────────────────
+function renderModuleSummary() {
+  const subjectCodes = Object.keys(SUBJECT_NAMES);
+  const nAlumnes = students.length;
+
+  const rows = subjectCodes.map(code => {
+    let aprov = 0, susp = 0, pdt = 0, noData = 0;
+    const notes = [];
+
+    students.forEach(student => {
+      const sub = student.subjects[code];
+      if (!sub) { noData++; return; }
+      const fc = finalClass(sub.final);
+      const val = parseVal(sub.final);
+      if (fc === 'pass') { aprov++; if (typeof val === 'number') notes.push(val); }
+      else if (fc === 'fail') { susp++; if (typeof val === 'number') notes.push(val); }
+      else if (fc === 'warn') pdt++;
+      else noData++;
+    });
+
+    const total = aprov + susp + pdt;
+    if (total === 0) return null;
+
+    const pct = total > 0 ? Math.round((aprov / total) * 100) : 0;
+    const pctSusp = total > 0 ? Math.round((susp / total) * 100) : 0;
+    const pctPdt  = total > 0 ? Math.round((pdt  / total) * 100) : 0;
+    const mitjana = notes.length > 0
+      ? (notes.reduce((a, b) => a + b, 0) / notes.length).toFixed(1)
+      : '—';
+
+    return { code, name: SUBJECT_NAMES[code], aprov, susp, pdt, total, pct, pctSusp, pctPdt, mitjana };
+  }).filter(Boolean);
+
+  const tableRows = rows.map(r => `
+    <tr>
+      <td class="td-modname">
+        <span class="mod-code">${r.code}</span>${r.name}
+      </td>
+      <td><span class="gt-num ok">${r.aprov}</span></td>
+      <td><span class="gt-num ko">${r.susp}</span></td>
+      <td><span class="gt-num pdt">${r.pdt}</span></td>
+      <td><span class="gt-num info">${r.total}</span></td>
+      <td style="min-width:60px">
+        <div style="font-size:0.7rem;color:var(--green);font-family:'Fraunces',serif;font-weight:900">${r.pct}%</div>
+      </td>
+      <td>
+        <div style="font-family:'Fraunces',serif;font-size:1.05rem;font-weight:900;color:${parseFloat(r.mitjana)>=5?'var(--green)':r.mitjana==='—'?'var(--text-muted)':'var(--red)'}">${r.mitjana}</div>
+      </td>
+      <td style="min-width:120px;padding:10px 14px">
+        <div class="mod-bar-wrap" style="overflow:hidden">
+          <div class="mod-bar-ok"  style="width:${r.pct}%"></div>
+          <div class="mod-bar-ko"  style="width:${r.pctSusp}%"></div>
+          <div class="mod-bar-pdt" style="width:${r.pctPdt}%"></div>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  return `
+    <div class="summary-title">Resum per <span>mòduls</span></div>
+    <table class="module-table">
+      <thead>
+        <tr>
+          <th class="th-left">Mòdul</th>
+          <th>Aprovats</th>
+          <th>Suspesos</th>
+          <th>Pendents</th>
+          <th>Total</th>
+          <th>% Aprovat</th>
+          <th>Nota mitjana</th>
+          <th>Distribució</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    <p style="font-size:0.68rem;color:var(--text-muted);margin-top:10px">
+      Distribució: <span style="color:var(--green)">■</span> Aprovat &nbsp;
+      <span style="color:var(--red)">■</span> Suspès &nbsp;
+      <span style="color:var(--yellow)">■</span> Pendent
+    </p>
+  `;
+}
+
+// ─────────────────────────────────────────────
 // UI EVENTS
 // ─────────────────────────────────────────────
 const uploadScreen  = document.getElementById('upload-screen');
@@ -1153,11 +1347,13 @@ const fileInput     = document.getElementById('file-input');
 const studentSelect = document.getElementById('student-select');
 const studentView   = document.getElementById('student-view');
 const groupSummary  = document.getElementById('group-summary');
+const moduleSummary = document.getElementById('module-summary');
 const resetBtn      = document.getElementById('reset-btn');
 const backBtn       = document.getElementById('back-btn');
 const prevBtn       = document.getElementById('prev-btn');
 const nextBtn       = document.getElementById('next-btn');
 const topBar        = document.getElementById('top-bar');
+const tabBar        = document.getElementById('tab-bar');
 
 let currentStudentNom = '';
 
@@ -1168,16 +1364,22 @@ function updateNavButtons() {
   nextBtn.disabled = idx === -1 || idx >= opts.length - 1;
 }
 
+function setActiveTab(tab) {
+  tabBar.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+}
+
 function showGroupSummary() {
   studentView.style.display = 'none';
+  moduleSummary.style.display = 'none';
   groupSummary.style.display = 'block';
+  tabBar.style.display = 'flex';
   groupSummary.innerHTML = renderGroupSummary();
   backBtn.classList.remove('visible');
   topBar.classList.remove('student-mode');
+  setActiveTab('group');
   studentSelect.value = '';
   window.scrollTo(0, 0);
 
-  // Click on a row → open student
   groupSummary.querySelectorAll('tr[data-id]').forEach(tr => {
     tr.addEventListener('click', () => {
       const id = tr.dataset.id;
@@ -1186,6 +1388,26 @@ function showGroupSummary() {
     });
   });
 }
+
+function showModuleSummary() {
+  studentView.style.display = 'none';
+  groupSummary.style.display = 'none';
+  moduleSummary.style.display = 'block';
+  tabBar.style.display = 'flex';
+  moduleSummary.innerHTML = renderModuleSummary();
+  backBtn.classList.remove('visible');
+  topBar.classList.remove('student-mode');
+  setActiveTab('modules');
+  studentSelect.value = '';
+  window.scrollTo(0, 0);
+}
+
+tabBar.addEventListener('click', e => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  if (btn.dataset.tab === 'group') showGroupSummary();
+  else if (btn.dataset.tab === 'modules') showModuleSummary();
+});
 
 dropZone.addEventListener('click', () => fileInput.click());
 
@@ -1261,6 +1483,8 @@ studentSelect.addEventListener('change', () => {
   if (!student) return;
   currentStudentNom = student.nom;
   groupSummary.style.display = 'none';
+  moduleSummary.style.display = 'none';
+  tabBar.style.display = 'none';
   studentView.style.display = 'block';
   studentView.innerHTML = '<div id="pdf-target"></div>';
   document.getElementById('pdf-target').innerHTML = renderStudent(student);
@@ -1354,6 +1578,9 @@ resetBtn.addEventListener('click', () => {
   studentView.style.display = 'none';
   groupSummary.style.display = 'none';
   groupSummary.innerHTML = '';
+  moduleSummary.style.display = 'none';
+  moduleSummary.innerHTML = '';
+  tabBar.style.display = 'none';
   dashboard.style.display = 'none';
   uploadScreen.style.display = 'flex';
   fileInput.value = '';
