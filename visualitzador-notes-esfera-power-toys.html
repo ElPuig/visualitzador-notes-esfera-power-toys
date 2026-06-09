@@ -20,11 +20,48 @@
     --green-dim: #1a3d2e;
     --red: #f05a5a;
     --red-dim: #3d1a1a;
-    --yellow: #f5c842;
+    --yellow: #d4a000;
     --yellow-dim: #3a3010;
     --accent: #8b7cf8;
     --accent2: #4fd1c5;
   }
+
+  :root.light {
+    --bg: #f4f4f8;
+    --surface: #ffffff;
+    --surface2: #eaeaf0;
+    --border: #d0d0de;
+    --text: #1a1a2e;
+    --text-muted: #7a7a96;
+    --green: #179957;
+    --green-dim: #d4f0e2;
+    --red: #d63c3c;
+    --red-dim: #fde8e8;
+    --yellow: #b07d00;
+    --yellow-dim: #fff3cc;
+    --accent: #6c5ce7;
+    --accent2: #00b4a6;
+  }
+
+  /* ── THEME TOGGLE ── */
+  .theme-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 1rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .theme-btn:hover { border-color: var(--accent); background: var(--surface); }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -38,7 +75,26 @@
     justify-content: center;
   }
 
-  /* ── UPLOAD SCREEN ── */
+  .upload-theme-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-end;
+  }
+
+  .upload-theme-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
   #upload-screen {
     display: flex;
     flex-direction: column;
@@ -475,7 +531,7 @@
 
   /* ── PDF LAYOUT (applied to #pdf-target during export) ── */
   #pdf-target.pdf-mode {
-    background: #0f0f13;
+    background: var(--bg);
     padding: 28px 32px 32px;
     width: 900px;
   }
@@ -669,7 +725,7 @@
 
   .group-table tbody tr:last-child { border-bottom: none; }
 
-  .group-table tbody tr:hover { background: #1e1e2e; }
+  .group-table tbody tr:hover { background: var(--surface2); }
 
   .group-table td {
     padding: 8px 12px;
@@ -831,6 +887,7 @@
 
 <!-- UPLOAD SCREEN -->
 <div id="upload-screen">
+  <button class="upload-theme-btn" id="upload-theme-btn">☀ Mode clar</button>
   <div class="logo-mark">📊</div>
   <h1 class="upload-title">Esfera<br><span>PowerToys</span></h1>
   <p class="upload-subtitle">Visualitzador de notes · Carrega el fitxer exportat d'Esfera per veure el recorregut de cada alumne</p>
@@ -857,6 +914,7 @@
       <button class="nav-btn" id="next-btn" title="Alumne següent">›</button>
     </div>
     <button class="new-file-btn" id="reset-btn">↩ Nou fitxer</button>
+    <button class="theme-btn" id="theme-btn" title="Canviar tema">☀</button>
   </div>
   <div class="tab-bar" id="tab-bar" style="display:none">
     <button class="tab-btn active" data-tab="group">👥 Alumnes</button>
@@ -1354,6 +1412,23 @@ const prevBtn       = document.getElementById('prev-btn');
 const nextBtn       = document.getElementById('next-btn');
 const topBar        = document.getElementById('top-bar');
 const tabBar        = document.getElementById('tab-bar');
+const themeBtn       = document.getElementById('theme-btn');
+const uploadThemeBtn = document.getElementById('upload-theme-btn');
+
+function applyTheme(light) {
+  document.documentElement.classList.toggle('light', light);
+  themeBtn.textContent = light ? '🌙' : '☀';
+  themeBtn.title = light ? 'Canviar a mode fosc' : 'Canviar a mode clar';
+  uploadThemeBtn.textContent = light ? '🌙 Mode fosc' : '☀ Mode clar';
+}
+
+themeBtn.addEventListener('click', () => {
+  applyTheme(!document.documentElement.classList.contains('light'));
+});
+
+uploadThemeBtn.addEventListener('click', () => {
+  applyTheme(!document.documentElement.classList.contains('light'));
+});
 
 let currentStudentNom = '';
 
@@ -1527,10 +1602,14 @@ studentView.addEventListener('click', async (e) => {
   await new Promise(r => setTimeout(r, 120));
 
   try {
-    const canvas = await html2canvas(target, {
+    const isLight = document.documentElement.classList.contains('light');
+  const bgColor = isLight ? '#f4f4f8' : '#0f0f13';
+  const bgRGB   = isLight ? [244, 244, 248] : [15, 15, 19];
+
+  const canvas = await html2canvas(target, {
       scale: 1.5,
       useCORS: true,
-      backgroundColor: '#0f0f13',
+      backgroundColor: bgColor,
       logging: false,
     });
 
@@ -1547,8 +1626,7 @@ studentView.addEventListener('click', async (e) => {
     let yOffset = 0, page = 0;
     while (yOffset < imgH) {
       if (page > 0) pdf.addPage();
-      // fondo oscuro
-      pdf.setFillColor(15, 15, 19);
+      pdf.setFillColor(...bgRGB);
       pdf.rect(0, 0, pageW, pageH, 'F');
       pdf.addImage(imgData, 'JPEG', margin, margin - yOffset, usableW, imgH);
       yOffset += pageH - margin * 2;
