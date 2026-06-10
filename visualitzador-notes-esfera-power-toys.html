@@ -1080,9 +1080,9 @@ function displayVal(v) {
 }
 
 function finalClass(v) {
-  if (isNA(v)) return 'na'; // nota final buida = sense dades (no comptem com a suspès)
+  if (v === '' || v === undefined || v === 'NA') return 'fail'; // NA o buit = suspès = vermell
   const p = parseVal(v);
-  if (p === null) return 'na';
+  if (p === null) return 'fail';
   if (p === 'PDT') return 'warn';
   if (p === 'PQ') return 'pass';
   if (typeof p === 'number' && p >= 5) return 'pass';
